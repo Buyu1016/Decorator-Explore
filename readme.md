@@ -2,12 +2,10 @@
 
 **先跑一张装饰器的代码示例**
 ```ts
-import http, { IncomingMessage, ServerResponse } from "http";
+import { IncomingMessage } from "http";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
-
-type Res = ServerResponse<IncomingMessage> & { req: IncomingMessage }
-
+import { Get, Server, Middleware, Static, Res } from "./Decorators";
 
 @Server()
 class UserServer {
@@ -61,76 +59,24 @@ class UserServer {
     };
 };
 
-function Get(url: string) {
-    return (target: any, name: string, descriptor: PropertyDescriptor) => {
-        target.__proto__.routerMap ||= new Map();
-        target.__proto__.routerMap.set(`${url}&&GET`, descriptor.value.bind(target));
-    };
-};
-
-function Static(staticUrl: string) {
-    return (target: any, name: string, descriptor: PropertyDescriptor) => {
-        // 静态资源处理
-        target.__proto__.static = {
-            baseUrl: staticUrl,
-            fn: descriptor.value.bind(target)
-        };
-    };
-}
-
-function Middleware(target: any, name: string, descriptor: PropertyDescriptor) {
-    target.__proto__.middleware ||= [];
-    target.__proto__.middleware.push(async (...args: any[]) => {
-        return await descriptor.value.apply(target, args);
-    });
-};
-
-function Server(port = "8080") {
-    return (target: new (...args: any[]) => UserServer) => {
-        const routerMap = target.prototype.routerMap ||= new Map<string, (...args: any) => any>(),
-            middleware = target.prototype.middleware ||= [],
-            staticLogo = target.prototype.static;
-        const server = http.createServer(async (req, res) => {
-            const reqKey = `${req.url}&&${req.method?.toLocaleUpperCase()}`;
-            if (routerMap.has(reqKey) || (staticLogo && (req.url?.indexOf(staticLogo.baseUrl) === 0))) {
-                try {
-                    // 中间件运行
-                    // 此处没有做好对于中间件的运行管理, 应该改用generator机制将next函数执行权交给中间件自行处理
-                    await Promise.all(middleware.map(async (middlewareItem: Function) => {
-                        await middlewareItem(req, res);
-                    }));
-                    // 对于静态资源的处理
-                    if (staticLogo && (req.url?.indexOf(staticLogo.baseUrl) === 0)) {
-                        // 说明此次为静态资源处理
-                        req.url = req.url.slice(staticLogo.baseUrl.length);
-                        await staticLogo.fn(req, res);
-                        return;
-                    };
-                    const response = await routerMap.get(reqKey)(req);
-                    res.end(JSON.stringify(response));
-                } catch (error) {
-                    res.end("Server Error");
-                }
-            } else {
-                res.end("Not Interface");
-            };
-        });
-        server.listen(port, () => {
-            console.log(`服务已于${port}端口运行`);
-        });
-    };
-};
-
 ```
 
 这段代码主要就是启动了一个node的web服务, 并定义了路由与静态资源与中间件的装饰器. 其中间的Get这种装饰器灵感来源自NestJs中, 有兴趣的同学可以自行去了解一下
 
 ### 什么是装饰器
-装饰器英文名为Decorator, 写法的主要特征为```@ + 返回装饰器函数的表达式```. 装饰器的本质就是个函数, 所以装饰器能够做到的功能我们编写函数都可以做到.
+装饰器英文名为Decorator, 写法的主要特征为```@ + 返回装饰器函数的表达式```. 装饰器的本质就是个函数, 所以装饰器能够做到的功能我们编写函数都可以做到. 我们通常使用装饰器是用于增强/改变某个东西, 此处所指的东西会在下面提到.
 
 ### 装饰器的使用范围
-目前装饰器可使用在类、类方法上, 可能会有人问此处的类具体指的是什么, 因为在没有class关键字之前都是使用构造函数进行产生实例, 所以我们在此处明确点回答就是针对class, 不能作用于构造函数上, 构造函数从本质上来讲是属于函数范围.
+目前装饰器可使用在类、类方法、访问器、类属性上, 可能会有人问此处的类具体指的是什么, 因为在没有class关键字之前都是使用构造函数进行产生实例, 所以我们在此处明确点回答就是针对class, 不能作用于构造函数上, 构造函数从本质上来讲是属于函数范围.
 目前装饰器默认处于第二提案阶段, 我们想要使用是需要搭配使用一些东西的, 例如: babel/typescript
+
+#### 类装饰器
+
+#### 方法装饰器
+
+#### 属性装饰器
+
+#### 访问器装饰器
 
 ### 多装饰器的执行顺序
 当你使用多个装饰器时, 多个装饰器的执行顺序类似于洋葱. 下面由一张图和代码来说明:
