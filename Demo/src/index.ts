@@ -3,11 +3,6 @@ import { release, subscription, A, B, C } from "./Decorators";
 @A
 class Component1 {
 
-    @C
-    public _uid = Math.random().toString(16).split(".")[1];
-
-    constructor(@B name: string) {}
-
     @release(["changeValue1"])
     public eventTriggerPoint() {
         console.log("TriggerPoint1");
@@ -31,5 +26,5 @@ class Component2 {
     };
 }
 
-const component1 = new Component1("CodeGorgeous");
+const component1 = new Component1();
 component1.eventTriggerPoint();
